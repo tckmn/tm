@@ -31,17 +31,23 @@ int main(int argc, char* argv[]) {
     long int unitless_vals[10] = { 0 };
     int unitless_idx = 0;
 
+    int help = 0, version = 0;
+
     for (int i = 1; i < argc; ++i) {
-        for (char *c = argv[i]; *c;) {
+        if (*argv[i] == '-') {
+            if (argv[i][1] == 'h' || (argv[i][1] == '-' && argv[i][2] == 'h')) {
+                help = 1;
+            } else if (argv[i][1] == 'v' || (argv[i][1] == '-' && argv[i][2] == 'v')) {
+                version = 1;
+            } else {
+                fprintf(stderr, "unrecognized flag %s\n", argv[i]);
+            }
+        } else for (char *c = argv[i]; *c;) {
             if (*c >= '0' && *c <= '9') {
                 lastval = strtol(c, &c, 10);
                 unitless_vals[unitless_idx++] = lastval;
             } else {
-                if (unitless_idx > 1) {
-                    fputs("cannot mix units and unitless values\n", stderr);
-                    printf("\x1b[?25h");
-                    return 1;
-                }
+                if (unitless_idx > 1) goto fail;
                 unit_val = 1;
                 unitless_idx = 0;
                 time_t sec = -1;
@@ -49,7 +55,7 @@ int main(int argc, char* argv[]) {
                 switch (*c) {
                     case 'n': nsec = 1; break;
                     case 's': sec = 1; break;
-                    case 'm': if (c[1] == 's') nsec = 1000000;
+                    case 'm': if (c[1] == 's' || (c[1] == 'i' && c[2] == 'l')) nsec = 1000000;
                               else if (c[1] == 'o') sec = 60*60*24*30;
                               else sec = 60;
                               break;
@@ -70,12 +76,32 @@ int main(int argc, char* argv[]) {
         }
     }
 
-    if (lastval != -1) {
-        if (unit_val) {
-            fputs("cannot mix units and unitless values\n", stderr);
-            printf("\x1b[?25h");
-            return 1;
-        }
+    if (help) {
+        fprintf(stderr,
+                "usage: %s [DURATION]\n"
+                "\n"
+                "specify duration for a countdown\n"
+                "leave duration unspecified for a stopwatch\n"
+                "\n"
+                "valid units:\n"
+                "  ns nanoseconds\n"
+                "  ms milliseconds\n"
+                "  s sec seconds\n"
+                "  m min minutes\n"
+                "  h hr hours\n"
+                "  d days\n"
+                "  mo months\n"
+                "  y yr years\n"
+                "\n"
+                "leaving all units unspecified will default to:\n"
+                "  yr mo d hr min sec\n"
+                "removing units from the left if ommitted\n"
+                "",
+                argv[0]);
+    } else if (version) {
+        fputs("tm version 0.0.1\n", stderr);
+    } else if (lastval != -1) {
+        if (unit_val) goto fail;
         time_t total = 0;
         time_t mults[] = { 60, 60, 24, 30, 12 };
         for (int i = unitless_idx - 1; i >= 0; --i) {
@@ -95,4 +121,9 @@ int main(int argc, char* argv[]) {
 
     printf("\x1b[?25h");
     return 0;
+
+fail:
+    fputs("cannot mix units and unitless values\n", stderr);
+    printf("\x1b[?25h");
+    return 1;
 }
