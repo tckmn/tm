@@ -37,6 +37,7 @@ int timer(struct timespec *duration) {
         }
     }
     struct pollfd input[] = {{0, POLLIN, 0}};
+    int checkpoll = !poll(input, 1, 0);
     for (;;) {
         clock_gettime(CLOCK_MONOTONIC, &now);
         time_t sec_diff = now.tv_sec - start.tv_sec;
@@ -59,9 +60,11 @@ int timer(struct timespec *duration) {
         printf("\x1b[G\x1b[K%ldd %02ld:%02ld:%02ld.%09ld",
                 day_diff, hour_diff, min_diff, sec_diff, nsec_diff);
         fflush(stdout);
-        if (poll(input, 1, POLL_MS)) break;
+        if (checkpoll && poll(input, 1, POLL_MS)) {
+            while (getchar() != '\n');
+            break;
+        }
     }
-    while (getchar() != '\n');
     return 0;
 }
 
