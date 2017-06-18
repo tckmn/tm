@@ -1,0 +1,17 @@
+tm - a text-based stopwatch/countdown timer tool
+
+To compile:
+
+    make
+
+Depends on libnotify.
+
+Usage:
+
+    tm             # stopwatch
+    tm 2h 30m 10s  # timer for two hours, thirty minutes, ten seconds
+    tm 2h30m10s    # the following formats are all equivalent
+    tm 2:30:10
+    tm 2 hours 30 minutes 10 seconds
+    tm 2 30 10
+    tm 2 h 30 m 10 s
