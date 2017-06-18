@@ -1,5 +1,6 @@
 TARGET = bin/tm
-.PHONY: all clean
+PREFIX ?= /usr/local
+.PHONY: all clean debug release install
 
 all: $(TARGET)
 
@@ -19,6 +20,10 @@ release: FLAGS = -Os
 
 release: $(TARGET)
 	strip -s -R .comment -R .gnu.version $(TARGET)
+
+install: $(TARGET)
+	install -D $(TARGET) $(DESTDIR)$(PREFIX)/$(TARGET)
+	install -Dm644 tm.1 $(DESTDIR)$(PREFIX)/share/man/man1/tm.1
 
 clean:
 	rm -rf bin
