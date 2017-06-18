@@ -16,13 +16,20 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <signal.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <time.h>
 
 #include "tm.h"
 
+void fix_cursor() {
+    printf("\x1B[?25h");
+    exit(1);
+}
+
 int main(int argc, char* argv[]) {
+    signal(SIGINT, fix_cursor);
     printf("\x1b[?25l");
 
     struct timespec duration = { 0 };
