@@ -109,6 +109,7 @@ int main(int argc, char* argv[]) {
         fputs("tm version 0.0.1\n", stderr);
     } else if (lastval != -1) {
         if (unit_val) goto fail;
+        if (unitless_idx > 6) goto fail; // fix for segv fault on line 118
         time_t total = 0;
         time_t mults[] = { 60, 60, 24, 30, 12 };
         for (int i = unitless_idx - 1; i >= 0; --i) {
