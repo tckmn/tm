@@ -51,18 +51,29 @@ int timer(struct timespec *duration) {
             sec_diff -= 1;
         }
         if (sec_diff < 0 && duration) {
-            printf("\x1b[G\x1b[Kcountdown finished\n");
+            printf("\rcountdown finished\n");
             return 1;
         }
         time_t min_diff = sec_diff / 60; sec_diff %= 60;
         time_t hour_diff = min_diff / 60; min_diff %= 60;
         time_t day_diff = hour_diff / 24; hour_diff %= 24;
-        printf("\x1b[G\x1b[K%ldd %02ld:%02ld:%02ld.%09ld",
+        printf("\r%ldd %02ld:%02ld:%02ld.%09ld",
                 day_diff, hour_diff, min_diff, sec_diff, nsec_diff);
         fflush(stdout);
         if (checkpoll && poll(input, 1, POLL_MS)) {
-            while (getchar() != '\n');
-            break;
+            int c;
+            c = getchar();
+            if (c == '\n') {
+              struct timespec offset_start, offset_end;
+              clock_gettime(CLOCK_MONOTONIC, &offset_start);
+              c = -1;
+              while(c != '\n') {
+                c = getchar();
+              }
+              clock_gettime(CLOCK_MONOTONIC, &offset_end);
+              start.tv_sec += offset_end.tv_sec - offset_start.tv_sec;
+              start.tv_nsec += offset_end.tv_nsec - offset_start.tv_nsec;
+            }
         }
     }
     return 0;
