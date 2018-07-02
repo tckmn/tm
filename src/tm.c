@@ -25,8 +25,46 @@
 
 #define POLL_MS 10
 
+struct timespec start, now;
+pthread_t input_handler;
+int pause_loop = 0;
+int get_input = 1;
+int run_loop = 1;
+
+void *manage_input(void* ignored) {
+    struct pollfd input[] = {{0, POLLIN, 0}};
+    while (get_input) {
+        if (poll(input, 1, POLL_MS)) {
+            int c;
+            c = getchar();
+            if (c == '\n' || c == ' ') {
+                pause_loop = 1;
+                struct timespec offset_start, offset_end;
+                clock_gettime(CLOCK_MONOTONIC, &offset_start);
+                c = -1;
+                while(c != '\n' && c != ' ') {
+                  c = getchar();
+                }
+                clock_gettime(CLOCK_MONOTONIC, &offset_end);
+                start.tv_sec += offset_end.tv_sec - offset_start.tv_sec;
+                start.tv_nsec += offset_end.tv_nsec - offset_start.tv_nsec;
+                pause_loop = 0;
+            } else if (c == 'q') {
+                run_loop = 0;
+            } else if (c == 'r') {
+                clock_gettime(CLOCK_MONOTONIC, &start);
+            }
+        }
+    }
+}
+
+void end_thread() {
+    get_input = 0;
+    pthread_join(input_handler, NULL);
+}
+
 int timer(struct timespec *duration) {
-    struct timespec start, now;
+    pthread_create(&input_handler, NULL, manage_input, NULL);
     clock_gettime(CLOCK_MONOTONIC, &start);
     if (duration) {
         start.tv_sec += duration->tv_sec;
@@ -36,9 +74,10 @@ int timer(struct timespec *duration) {
             start.tv_sec += 1;
         }
     }
-    struct pollfd input[] = {{0, POLLIN, 0}};
-    int checkpoll = !poll(input, 1, 0);
-    for (;;) {
+    while (run_loop) {
+        if (pause_loop) {
+            continue;
+        }
         clock_gettime(CLOCK_MONOTONIC, &now);
         time_t sec_diff = now.tv_sec - start.tv_sec;
         long int nsec_diff = now.tv_nsec - start.tv_nsec;
@@ -52,6 +91,7 @@ int timer(struct timespec *duration) {
         }
         if (sec_diff < 0 && duration) {
             printf("\rcountdown finished\n");
+            end_thread();
             return 1;
         }
         time_t min_diff = sec_diff / 60; sec_diff %= 60;
@@ -60,22 +100,9 @@ int timer(struct timespec *duration) {
         printf("\r%ldd %02ld:%02ld:%02ld.%09ld",
                 day_diff, hour_diff, min_diff, sec_diff, nsec_diff);
         fflush(stdout);
-        if (checkpoll && poll(input, 1, POLL_MS)) {
-            int c;
-            c = getchar();
-            if (c == '\n') {
-              struct timespec offset_start, offset_end;
-              clock_gettime(CLOCK_MONOTONIC, &offset_start);
-              c = -1;
-              while(c != '\n') {
-                c = getchar();
-              }
-              clock_gettime(CLOCK_MONOTONIC, &offset_end);
-              start.tv_sec += offset_end.tv_sec - offset_start.tv_sec;
-              start.tv_nsec += offset_end.tv_nsec - offset_start.tv_nsec;
-            }
-        }
+        usleep(POLL_MS*1000);
     }
+    end_thread();
     return 0;
 }
 

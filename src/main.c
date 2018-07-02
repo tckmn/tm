@@ -22,6 +22,7 @@
 #include <time.h>
 #include <termios.h>
 #include <unistd.h>
+#include <pthread.h>
 
 struct termios oldt, newt;
 
@@ -31,15 +32,8 @@ void reset_term() {
     tcsetattr( STDIN_FILENO, TCSANOW, &oldt);
 }
 
-void fix_cursor() {
-    /* printf("\x1B[?25h"); */
-    reset_term();
-    exit(1);
-}
-
 int main(int argc, char* argv[]) {
-    signal(SIGINT, fix_cursor);
-    /* printf("\x1b[?25l"); */
+    signal(SIGINT, reset_term);
 
     tcgetattr( STDIN_FILENO, &oldt);
     newt = oldt;
