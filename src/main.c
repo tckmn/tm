@@ -112,7 +112,12 @@ int main(int argc, char* argv[]) {
                 "leaving all units unspecified will default to:\n"
                 "  yr mo d hr min sec\n"
                 "removing units from the left if ommitted\n"
-                "",
+                "\n"
+                "Keybindings:\n"
+                "	return|space	pause\n"
+                "	r		reset\n"
+                "	q		quit\n"
+                "\n",
                 argv[0]);
     } else if (version) {
         fputs("tm version 0.0.1\n", stderr);

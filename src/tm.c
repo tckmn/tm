@@ -31,6 +31,12 @@ int pause_loop = 0;
 int get_input = 1;
 int run_loop = 1;
 
+
+void print_line(char* s) {
+    printf("\r                                 \r%s", s);
+    fflush(stdout);
+}
+
 // turn this into a state machine
 void *manage_input(void* ignored) {
     struct pollfd input[] = {{0, POLLIN, 0}};
@@ -52,15 +58,12 @@ void *manage_input(void* ignored) {
             } else if (c == 'q') {
                 run_loop = 0;
             } else if (c == 'r') {
+                /* print_line("0d 00:00:00.000000000"); */
                 clock_gettime(CLOCK_MONOTONIC, &start);
                 offset_start= start;
             }
         }
     }
-}
-
-void print_line(char* s) {
-    printf("\r                                 \r%s", s);
 }
 
 void end_thread() {
@@ -100,7 +103,6 @@ int timer(struct timespec *duration) {
         sprintf(time, "%ldd %02ld:%02ld:%02ld.%09ld",
                 day_diff, hour_diff, min_diff, sec_diff, nsec_diff);
         print_line(time);
-        fflush(stdout);
     cont:
         usleep(POLL_MS*1000);
     }
