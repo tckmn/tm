@@ -76,9 +76,11 @@ int timer(struct timespec *duration) {
             goto cont;
         }
         clock_gettime(CLOCK_MONOTONIC, &now);
-        time_t sec_diff = now.tv_sec - start.tv_sec - duration->tv_sec;
-        long int nsec_diff = now.tv_nsec - start.tv_nsec - duration->tv_nsec;
+        time_t sec_diff = now.tv_sec - start.tv_sec;
+        long int nsec_diff = now.tv_nsec - start.tv_nsec;
         if (duration) {
+            sec_diff -= duration->tv_sec;
+            nsec_diff -= duration->tv_nsec;
             sec_diff = -sec_diff;
             nsec_diff = -nsec_diff;
         }
