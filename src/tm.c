@@ -31,6 +31,7 @@ int pause_loop = 0;
 int get_input = 1;
 int run_loop = 1;
 
+// turn this into a state machine
 void *manage_input(void* ignored) {
     struct pollfd input[] = {{0, POLLIN, 0}};
     while (get_input) {
@@ -58,6 +59,10 @@ void *manage_input(void* ignored) {
     }
 }
 
+void print_line(char* s) {
+    printf("\r                                 \r%s", s);
+}
+
 void end_thread() {
     get_input = 0;
     pthread_join(input_handler, NULL);
@@ -69,14 +74,14 @@ int timer(struct timespec *duration) {
     if (duration) {
         start.tv_sec += duration->tv_sec;
         start.tv_nsec += duration->tv_nsec;
-        if (start.tv_nsec > BIL) {
+        if (start.tv_nsec >= BIL) {
             start.tv_nsec -= BIL;
             start.tv_sec += 1;
         }
     }
     while (run_loop) {
         if (pause_loop) {
-            continue;
+            goto cont;
         }
         clock_gettime(CLOCK_MONOTONIC, &now);
         time_t sec_diff = now.tv_sec - start.tv_sec;
@@ -85,21 +90,24 @@ int timer(struct timespec *duration) {
             sec_diff = -sec_diff;
             nsec_diff = -nsec_diff;
         }
-        if (nsec_diff < 0) {
+        while (nsec_diff < 0) {
             nsec_diff += BIL;
             sec_diff -= 1;
         }
         if (sec_diff < 0 && duration) {
-            printf("\rcountdown finished\n");
+            print_line("countdown finished\n");
             end_thread();
             return 1;
         }
         time_t min_diff = sec_diff / 60; sec_diff %= 60;
         time_t hour_diff = min_diff / 60; min_diff %= 60;
         time_t day_diff = hour_diff / 24; hour_diff %= 24;
-        printf("\r%ldd %02ld:%02ld:%02ld.%09ld",
+        char time[30];
+        sprintf(time, "%ldd %02ld:%02ld:%02ld.%09ld",
                 day_diff, hour_diff, min_diff, sec_diff, nsec_diff);
+        print_line(time);
         fflush(stdout);
+    cont:
         usleep(POLL_MS*1000);
     }
     end_thread();
