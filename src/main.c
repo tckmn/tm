@@ -20,17 +20,26 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <time.h>
+#include <termios.h>
+#include <unistd.h>
+#include <pthread.h>
+
+struct termios oldt, newt;
 
 #include "tm.h"
 
-void fix_cursor() {
-    printf("\x1B[?25h");
-    exit(1);
+void reset_term() {
+    tcsetattr( STDIN_FILENO, TCSANOW, &oldt);
 }
 
 int main(int argc, char* argv[]) {
-    signal(SIGINT, fix_cursor);
-    printf("\x1b[?25l");
+    signal(SIGINT, reset_term);
+
+    tcgetattr( STDIN_FILENO, &oldt);
+    newt = oldt;
+    newt.c_lflag &= ~(ICANON);
+    newt.c_lflag &= ~ECHO;
+    tcsetattr( STDIN_FILENO, TCSANOW, &newt);
 
     struct timespec duration = { 0 };
     long int lastval = -1;
@@ -103,7 +112,12 @@ int main(int argc, char* argv[]) {
                 "leaving all units unspecified will default to:\n"
                 "  yr mo d hr min sec\n"
                 "removing units from the left if ommitted\n"
-                "",
+                "\n"
+                "Keybindings:\n"
+                "	return|space	pause\n"
+                "	r		reset\n"
+                "	q		quit\n"
+                "\n",
                 argv[0]);
     } else if (version) {
         fputs("tm version 0.0.1\n", stderr);
@@ -126,11 +140,13 @@ int main(int argc, char* argv[]) {
         stopwatch();
     }
 
-    printf("\x1b[?25h");
+    /* printf("\x1b[?25h"); */
+    reset_term();
     return 0;
 
 fail:
     fputs("cannot mix units and unitless values\n", stderr);
-    printf("\x1b[?25h");
+    /* printf("\x1b[?25h"); */
+    reset_term();
     return 1;
 }

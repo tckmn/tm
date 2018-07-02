@@ -25,46 +25,88 @@
 
 #define POLL_MS 10
 
-int timer(struct timespec *duration) {
-    struct timespec start, now;
-    clock_gettime(CLOCK_MONOTONIC, &start);
-    if (duration) {
-        start.tv_sec += duration->tv_sec;
-        start.tv_nsec += duration->tv_nsec;
-        if (start.tv_nsec > BIL) {
-            start.tv_nsec -= BIL;
-            start.tv_sec += 1;
+struct timespec start, now;
+pthread_t input_handler;
+int pause_loop = 0;
+int get_input = 1;
+int run_loop = 1;
+
+
+void print_line(char* s) {
+    printf("\r                                 \r%s", s);
+    fflush(stdout);
+}
+
+// turn this into a state machine
+void *manage_input(void* ignored) {
+    struct pollfd input[] = {{0, POLLIN, 0}};
+    struct timespec offset_start, offset_end;
+    while (get_input) {
+        if (poll(input, 1, POLL_MS)) {
+            int c;
+            c = getchar();
+            if (c == '\n' || c == ' ') {
+                if (pause_loop) {
+                    pause_loop = 0;
+                    clock_gettime(CLOCK_MONOTONIC, &offset_end);
+                    start.tv_sec += offset_end.tv_sec - offset_start.tv_sec;
+                    start.tv_nsec += offset_end.tv_nsec - offset_start.tv_nsec;
+                } else {
+                    pause_loop = 1;
+                    clock_gettime(CLOCK_MONOTONIC, &offset_start);
+                }
+            } else if (c == 'q') {
+                run_loop = 0;
+            } else if (c == 'r') {
+                /* print_line("0d 00:00:00.000000000"); */
+                clock_gettime(CLOCK_MONOTONIC, &start);
+                offset_start= start;
+            }
         }
     }
-    struct pollfd input[] = {{0, POLLIN, 0}};
-    int checkpoll = !poll(input, 1, 0);
-    for (;;) {
+}
+
+void end_thread() {
+    get_input = 0;
+    pthread_join(input_handler, NULL);
+}
+
+int timer(struct timespec *duration) {
+    pthread_create(&input_handler, NULL, manage_input, NULL);
+    clock_gettime(CLOCK_MONOTONIC, &start);
+    while (run_loop) {
+        if (pause_loop) {
+            goto cont;
+        }
         clock_gettime(CLOCK_MONOTONIC, &now);
         time_t sec_diff = now.tv_sec - start.tv_sec;
         long int nsec_diff = now.tv_nsec - start.tv_nsec;
         if (duration) {
+            sec_diff -= duration->tv_sec;
+            nsec_diff -= duration->tv_nsec;
             sec_diff = -sec_diff;
             nsec_diff = -nsec_diff;
         }
-        if (nsec_diff < 0) {
+        while (nsec_diff < 0) {
             nsec_diff += BIL;
             sec_diff -= 1;
         }
         if (sec_diff < 0 && duration) {
-            printf("\x1b[G\x1b[Kcountdown finished\n");
+            print_line("countdown finished\n");
+            end_thread();
             return 1;
         }
         time_t min_diff = sec_diff / 60; sec_diff %= 60;
         time_t hour_diff = min_diff / 60; min_diff %= 60;
         time_t day_diff = hour_diff / 24; hour_diff %= 24;
-        printf("\x1b[G\x1b[K%ldd %02ld:%02ld:%02ld.%09ld",
+        char time[30];
+        sprintf(time, "%ldd %02ld:%02ld:%02ld.%09ld",
                 day_diff, hour_diff, min_diff, sec_diff, nsec_diff);
-        fflush(stdout);
-        if (checkpoll && poll(input, 1, POLL_MS)) {
-            while (getchar() != '\n');
-            break;
-        }
+        print_line(time);
+    cont:
+        usleep(POLL_MS*1000);
     }
+    end_thread();
     return 0;
 }
 
