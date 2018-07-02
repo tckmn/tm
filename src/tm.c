@@ -34,26 +34,26 @@ int run_loop = 1;
 // turn this into a state machine
 void *manage_input(void* ignored) {
     struct pollfd input[] = {{0, POLLIN, 0}};
+    struct timespec offset_start, offset_end;
     while (get_input) {
         if (poll(input, 1, POLL_MS)) {
             int c;
             c = getchar();
             if (c == '\n' || c == ' ') {
-                pause_loop = 1;
-                struct timespec offset_start, offset_end;
-                clock_gettime(CLOCK_MONOTONIC, &offset_start);
-                c = -1;
-                while(c != '\n' && c != ' ') {
-                  c = getchar();
+                if (pause_loop) {
+                    pause_loop = 0;
+                    clock_gettime(CLOCK_MONOTONIC, &offset_end);
+                    start.tv_sec += offset_end.tv_sec - offset_start.tv_sec;
+                    start.tv_nsec += offset_end.tv_nsec - offset_start.tv_nsec;
+                } else {
+                    pause_loop = 1;
+                    clock_gettime(CLOCK_MONOTONIC, &offset_start);
                 }
-                clock_gettime(CLOCK_MONOTONIC, &offset_end);
-                start.tv_sec += offset_end.tv_sec - offset_start.tv_sec;
-                start.tv_nsec += offset_end.tv_nsec - offset_start.tv_nsec;
-                pause_loop = 0;
             } else if (c == 'q') {
                 run_loop = 0;
             } else if (c == 'r') {
                 clock_gettime(CLOCK_MONOTONIC, &start);
+                offset_start= start;
             }
         }
     }
@@ -71,21 +71,13 @@ void end_thread() {
 int timer(struct timespec *duration) {
     pthread_create(&input_handler, NULL, manage_input, NULL);
     clock_gettime(CLOCK_MONOTONIC, &start);
-    if (duration) {
-        start.tv_sec += duration->tv_sec;
-        start.tv_nsec += duration->tv_nsec;
-        if (start.tv_nsec >= BIL) {
-            start.tv_nsec -= BIL;
-            start.tv_sec += 1;
-        }
-    }
     while (run_loop) {
         if (pause_loop) {
             goto cont;
         }
         clock_gettime(CLOCK_MONOTONIC, &now);
-        time_t sec_diff = now.tv_sec - start.tv_sec;
-        long int nsec_diff = now.tv_nsec - start.tv_nsec;
+        time_t sec_diff = now.tv_sec - start.tv_sec - duration->tv_sec;
+        long int nsec_diff = now.tv_nsec - start.tv_nsec - duration->tv_nsec;
         if (duration) {
             sec_diff = -sec_diff;
             nsec_diff = -nsec_diff;
